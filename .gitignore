@@ -1,0 +1,9 @@
+ipch
+.vs
+*.db
+*.opendb
+*.aps
+*.user
+/VRC-Knuckles-Emulator/x64/
+/x64/
+/lib/boost*

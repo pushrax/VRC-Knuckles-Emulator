@@ -1,0 +1,69 @@
+{
+   "action_sets" : [
+      {
+         "name" : "/actions/main",
+         "usage" : "leftright"
+      }
+   ],
+   "actions" : [
+      {
+         "name" : "/actions/main/in/LeftFinger1",
+         "requirement" : "mandatory",
+         "type" : "vector1"
+      },
+      {
+         "name" : "/actions/main/in/LeftFinger2",
+         "requirement" : "mandatory",
+         "type" : "vector1"
+      },
+      {
+         "name" : "/actions/main/in/LeftFinger3",
+         "requirement" : "mandatory",
+         "type" : "vector1"
+      },
+      {
+         "name" : "/actions/main/in/LeftFinger4",
+         "requirement" : "mandatory",
+         "type" : "vector1"
+      },
+      {
+         "name" : "/actions/main/in/RightFinger1",
+         "requirement" : "mandatory",
+         "type" : "vector1"
+      },
+      {
+         "name" : "/actions/main/in/RightFinger2",
+         "requirement" : "mandatory",
+         "type" : "vector1"
+      },
+      {
+         "name" : "/actions/main/in/RightFinger3",
+         "requirement" : "mandatory",
+         "type" : "vector1"
+      },
+      {
+         "name" : "/actions/main/in/RightFinger4",
+         "requirement" : "mandatory",
+         "type" : "vector1"
+      }
+   ],
+   "default_bindings" : [
+      {
+         "binding_url" : "knuckles_bindings.json",
+         "controller_type" : "knuckles"
+      }
+   ],
+   "localization" : [
+      {
+         "/actions/main/in/LeftFinger1" : "Left Finger 1",
+         "/actions/main/in/LeftFinger2" : "Left Finger 2",
+         "/actions/main/in/LeftFinger3" : "Left Finger 3",
+         "/actions/main/in/LeftFinger4" : "Left Finger 4",
+         "/actions/main/in/RightFinger1" : "Right Finger 1",
+         "/actions/main/in/RightFinger2" : "Right Finger 2",
+         "/actions/main/in/RightFinger3" : "Right Finger 3",
+         "/actions/main/in/RightFinger4" : "Right Finger 4",
+         "language_tag" : "en"
+      }
+   ]
+}
