@@ -7,6 +7,11 @@
    ],
    "actions" : [
       {
+         "name" : "/actions/main/in/LeftThumb",
+         "requirement" : "mandatory",
+         "type" : "boolean"
+      },
+      {
          "name" : "/actions/main/in/LeftFinger1",
          "requirement" : "mandatory",
          "type" : "vector1"
@@ -25,6 +30,11 @@
          "name" : "/actions/main/in/LeftFinger4",
          "requirement" : "mandatory",
          "type" : "vector1"
+      },
+      {
+         "name" : "/actions/main/in/RightThumb",
+         "requirement" : "mandatory",
+         "type" : "boolean"
       },
       {
          "name" : "/actions/main/in/RightFinger1",
