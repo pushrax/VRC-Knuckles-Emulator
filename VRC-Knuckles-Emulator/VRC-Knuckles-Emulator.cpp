@@ -16,7 +16,10 @@
 name='Microsoft.Windows.Common-Controls' version='6.0.0.0' \
 processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 
-protocol::SharedMemory shm;
+static protocol::SharedMemory Shm;
+static std::string WorkingDir;
+static DWORD InjectedPID = 0;
+static int TicksSinceWindowAppeared = 0;
 
 struct Controller
 {
@@ -56,8 +59,6 @@ void GLFWErrorCallback(int error, const char* description)
 static GLFWwindow *glfwWindow = nullptr;
 static vr::VRActionHandle_t actionHandles[2][5];
 static vr::VRActionSetHandle_t actionSetHandle;
-
-static char cwd[MAX_PATH];
 
 void CreateGLFWWindow()
 {
@@ -103,17 +104,12 @@ void InitVR()
 	{
 		throw std::runtime_error("OpenVR error: Outdated IVRSystem_Version");
 	}
-	else if (!vr::VR_IsInterfaceVersionValid(vr::IVRSettings_Version))
+	else if (!vr::VR_IsInterfaceVersionValid(vr::IVRInput_Version))
 	{
-		throw std::runtime_error("OpenVR error: Outdated IVRSettings_Version");
-	}
-	else if (!vr::VR_IsInterfaceVersionValid(vr::IVROverlay_Version))
-	{
-		throw std::runtime_error("OpenVR error: Outdated IVROverlay_Version");
+		throw std::runtime_error("OpenVR error: Outdated IVRInput_Version");
 	}
 
-	std::string manifestPath(cwd);
-	manifestPath += "\\action_manifest.json";
+	auto manifestPath = WorkingDir + "\\action_manifest.json";
 	vr::VRInput()->SetActionManifestPath(manifestPath.c_str());
 
 	vr::VRInput()->GetActionHandle("/actions/main/in/LeftThumb", &actionHandles[0][0]);
@@ -154,6 +150,23 @@ void BuildMainWindow(Context &ctx)
 	ImGui::Text("Left Gesture: %s", GestureToString(ctx.hands[0].gesture));
 	ImGui::Text("Right Gesture: %s", GestureToString(ctx.hands[1].gesture));
 
+	if (InjectedPID)
+	{
+		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0, 1, 0, 1));
+		ImGui::Text("Loaded into process: %d", InjectedPID);
+	}
+	else if (TicksSinceWindowAppeared)
+	{
+		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.7, 0.6, 0, 1));
+		ImGui::Text("Waiting for game to load: %d", 10 - TicksSinceWindowAppeared);
+	}
+	else
+	{
+		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1, 0.5, 0.5, 1));
+		ImGui::Text("Waiting for game to load");
+	}
+	ImGui::PopStyleColor();
+
 	ImGui::SetNextWindowPos(ImVec2(10.0f, ImGui::GetWindowHeight() - ImGui::GetItemsLineHeightWithSpacing()));
 	ImGui::BeginChild("bottom line", ImVec2(ImGui::GetWindowWidth() - 20.0f, ImGui::GetItemsLineHeightWithSpacing() * 2), false);
 	ImGui::Text("VRC Knuckles Emulator by tach/pushrax");
@@ -165,7 +178,7 @@ void BuildMainWindow(Context &ctx)
 const float thresholds[4][2] = {
 	{0.05, 0.95},
 	{0.1, 0.8},
-	{0.2, 0.8},
+	{0.05, 0.8},
 	{0.4, 0.8},
 };
 
@@ -203,7 +216,7 @@ void UpdateControllerIDs()
 {
 	static uint32_t lastIDs[2] = { ~0, ~0 };
 
-	if (!shm.mappedContext)
+	if (!Shm.mappedContext)
 		return;
 
 	uint32_t ids[2] = {
@@ -215,8 +228,8 @@ void UpdateControllerIDs()
 	{
 		printf("Updating controller IDs: %d %d\n", ids[0], ids[1]);
 
-		lastIDs[0] = shm.mappedContext->leftID = ids[0];
-		lastIDs[1] = shm.mappedContext->rightID = ids[1];
+		lastIDs[0] = Shm.mappedContext->leftID = ids[0];
+		lastIDs[1] = Shm.mappedContext->rightID = ids[1];
 	}
 }
 
@@ -224,17 +237,17 @@ void UpdateGestures(Context &ctx)
 {
 	static Gesture lastGestures[2] = { Idle, Idle };
 
-	if (!shm.mappedContext)
+	if (!Shm.mappedContext)
 		return;
 
 	if (ctx.hands[0].gesture != lastGestures[0])
 	{
-		lastGestures[0] = shm.mappedContext->leftGesture = ctx.hands[0].gesture;
+		lastGestures[0] = Shm.mappedContext->leftGesture = ctx.hands[0].gesture;
 	}
 
 	if (ctx.hands[1].gesture != lastGestures[1])
 	{
-		lastGestures[1] = shm.mappedContext->rightGesture = ctx.hands[1].gesture;
+		lastGestures[1] = Shm.mappedContext->rightGesture = ctx.hands[1].gesture;
 	}
 }
 
@@ -313,17 +326,28 @@ void LoadDLL()
 
 	lastLoadAttempt = time;
 
+	static bool windowExistedAtBoot = true;
+
 	auto hwnd = FindWindow(nullptr, L"VRChat");
 	if (!hwnd)
+	{
+		windowExistedAtBoot = false;
+		InjectedPID = 0;
 		return;
-
-	static DWORD injectedPID = 0;
+	}
 
 	DWORD pid;
 	GetWindowThreadProcessId(hwnd, &pid);
 
-	if (pid == injectedPID)
+	if (pid == InjectedPID)
 		return;
+
+	// wait a few seconds before injecting
+	if (!windowExistedAtBoot && TicksSinceWindowAppeared++ < 10)
+		return;
+
+	printf("Ready to inject DLL in process %d\n", pid);
+	TicksSinceWindowAppeared = 0;
 
 	HANDLE process = OpenProcess(PROCESS_ALL_ACCESS, false, pid);
 	if (!process)
@@ -333,9 +357,11 @@ void LoadDLL()
 	if (!loadLibraryAddr)
 		throw std::runtime_error("Failed to get address of LoadLibraryA");
 
-	std::string dllPath(cwd);
-	//dllPath += "\\..\\x64\\Release\\vrc_knuckles_emulator.dll";
-	dllPath += "\\vrc_knuckles_emulator.dll";
+	auto dllPath = WorkingDir + "\\..\\x64\\Release\\vrc_knuckles_emulator.dll";
+
+	if (GetFileAttributesA(dllPath.c_str()) == INVALID_FILE_ATTRIBUTES)
+		dllPath = WorkingDir + "\\vrc_knuckles_emulator.dll";
+
 	void *remoteDLLPath = VirtualAllocEx(process, NULL, dllPath.size(), MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 
 	int bytesWritten = WriteProcessMemory(process, remoteDLLPath, dllPath.c_str(), dllPath.size(), NULL);
@@ -346,14 +372,17 @@ void LoadDLL()
 	if (!threadID)
 		throw std::runtime_error("Failed to create remote thread");
 
-	injectedPID = pid;
+	InjectedPID = pid;
 	CloseHandle(process);
 	printf("Loaded DLL in process %d\n", pid);
 }
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPWSTR lpCmdLine, _In_ int nCmdShow)
 {
+	char cwd[MAX_PATH];
 	_getcwd(cwd, MAX_PATH);
+	WorkingDir = std::string(cwd);
+
 	//CreateConsole();
 	printf("Starting in cwd: %s\n", cwd);
 
@@ -368,8 +397,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 	try {
 		InitVR();
 
-		shm.Create();
-		*shm.mappedContext = protocol::Context();
+		Shm.Create();
+		*Shm.mappedContext = protocol::Context();
 
 		CreateGLFWWindow();
 		RunLoop();
@@ -388,7 +417,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 		MessageBox(nullptr, message, L"Runtime Error", 0);
 	}
 
-	shm.Release();
+	Shm.Release();
 
 	if (glfwWindow)
 		glfwDestroyWindow(glfwWindow);

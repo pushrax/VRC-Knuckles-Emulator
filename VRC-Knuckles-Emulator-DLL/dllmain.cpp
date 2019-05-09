@@ -10,8 +10,7 @@
 
 #include "../Protocol.h"
 
-static HANDLE mappedFileHandle = nullptr;
-static protocol::SharedMemory shm;
+static protocol::SharedMemory Shm;
 
 static bool (__stdcall *OriginalGetControllerState)(
 	TrackedDeviceIndex_t index, VRControllerState_t *state, uint32_t stateSize
@@ -33,7 +32,7 @@ static void ApplyGesture(int hand, Gesture gesture, VRControllerState_t *state)
 	static bool prevMoving[2] = { false, false };
 
 	float tx = state->rAxis[0].x, ty = state->rAxis[0].y;
-	if (abs(tx) > 0.1 || abs(ty) > 0.1)
+	if (abs(tx) > 0.15 || abs(ty) > 0.15)
 	{
 		// disable gestures during movement since they both need the trackpad axis
 		prevMoving[hand] = true;
@@ -89,7 +88,8 @@ static void ApplyGesture(int hand, Gesture gesture, VRControllerState_t *state)
 
 	if (prevMoving[hand])
 	{
-		// when movement stops, release trackpad for a frame to 
+		// when movement stops release trackpad for a frame, otherwise
+		// trackpad input for gestures will trigger more movement
 		state->ulButtonTouched &= ~TrackpadBit;
 		prevMoving[hand] = false;
 	}
@@ -97,7 +97,7 @@ static void ApplyGesture(int hand, Gesture gesture, VRControllerState_t *state)
 
 static void HandleStateUpdate(TrackedDeviceIndex_t index, VRControllerState_t *state)
 {
-	protocol::Context context = *shm.mappedContext;
+	protocol::Context context = *Shm.mappedContext;
 	/*if (index == context.leftID)
 		LOG("state: %llx %llx", state->ulButtonTouched, state->ulButtonPressed);*/
 
@@ -110,7 +110,7 @@ static void HandleStateUpdate(TrackedDeviceIndex_t index, VRControllerState_t *s
 static bool __stdcall DetourGetControllerState(TrackedDeviceIndex_t index, VRControllerState_t *state, uint32_t stateSize) 
 {
 	bool ok = OriginalGetControllerState(index, state, stateSize);
-	if (ok && shm.mappedContext)
+	if (ok && Shm.mappedContext)
 	{
 		HandleStateUpdate(index, state);
 	}
@@ -119,11 +119,11 @@ static bool __stdcall DetourGetControllerState(TrackedDeviceIndex_t index, VRCon
 
 static bool __stdcall DetourGetControllerStateWithPose(
 	ETrackingUniverseOrigin origin, TrackedDeviceIndex_t index,
-	VRControllerState_t *state,uint32_t stateSize,
+	VRControllerState_t *state, uint32_t stateSize,
 	struct TrackedDevicePose_t *pose)
 {
 	bool ok = OriginalGetControllerStateWithPose(origin, index, state, stateSize, pose);
-	if (ok && shm.mappedContext)
+	if (ok && Shm.mappedContext)
 	{
 		HandleStateUpdate(index, state);
 	}
@@ -173,13 +173,13 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 	case DLL_PROCESS_ATTACH:
 		OpenLogFile();
 		LOG("VRC-Knuckles-EmulatorDriver loaded");
-		shm.Create();
+		Shm.Create();
 		InjectHooks();
 		break;
 	case DLL_PROCESS_DETACH:
 		GetGenericInterfaceHook.Destroy();
 		GetInitTokenHook.Destroy();
-		shm.Release();
+		Shm.Release();
 		MH_Uninitialize();
 		LOG("VRC-Knuckles-EmulatorDriver unloaded");
 		break;

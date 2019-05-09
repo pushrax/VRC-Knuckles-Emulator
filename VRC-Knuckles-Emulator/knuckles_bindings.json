@@ -16,6 +16,24 @@
             {
                "inputs" : {
                   "pull" : {
+                     "output" : "/actions/main/in/leftthumb"
+                  }
+               },
+               "mode" : "button",
+               "path" : "/user/hand/left/input/a/touch"
+            },
+            {
+               "inputs" : {
+                  "pull" : {
+                     "output" : "/actions/main/in/leftthumb"
+                  }
+               },
+               "mode" : "button",
+               "path" : "/user/hand/left/input/b/touch"
+            },
+            {
+               "inputs" : {
+                  "pull" : {
                      "output" : "/actions/main/in/leftfinger1"
                   }
                },
@@ -57,6 +75,24 @@
                },
                "mode" : "button",
                "path" : "/user/hand/right/input/thumbstick/touch"
+            },
+            {
+               "inputs" : {
+                  "pull" : {
+                     "output" : "/actions/main/in/rightthumb"
+                  }
+               },
+               "mode" : "button",
+               "path" : "/user/hand/right/input/a/touch"
+            },
+            {
+               "inputs" : {
+                  "pull" : {
+                     "output" : "/actions/main/in/rightthumb"
+                  }
+               },
+               "mode" : "button",
+               "path" : "/user/hand/right/input/b/touch"
             },
             {
                "inputs" : {

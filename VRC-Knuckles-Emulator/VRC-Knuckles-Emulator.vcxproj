@@ -88,6 +88,12 @@
   <ItemGroup>
     <ResourceCompile Include="VRC-Knuckles-Emulator.rc" />
   </ItemGroup>
+  <ItemGroup>
+    <ContentWithTargetPath Include="..\lib\openvr\openvr_api.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <TargetPath>openvr_api.dll</TargetPath>
+    </ContentWithTargetPath>
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
