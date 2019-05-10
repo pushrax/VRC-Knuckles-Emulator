@@ -82,8 +82,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <Image Include="VRC-Knuckles-Emulator.ico" />
-    <Image Include="small.ico" />
+    <Image Include="icon.ico" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="VRC-Knuckles-Emulator.rc" />
